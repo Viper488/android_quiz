@@ -1,13 +1,30 @@
 import React, { useState } from "react";
-import { FlatList, SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, Button, View, Image} from 'react-native';
+import { FlatList, SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, Button, View, Image, ScrollView} from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
-import {Table, Row, Rows} from 'react-native-table-component'
+import {Table, Row, Rows} from 'react-native-table-component';
+import {
+  DrawerContentScrollView,
+  DrawerItemList,
+  DrawerItem
+} from '@react-navigation/drawer';
 
 const  tableHead = ['Nick', 'Point', 'Type', 'Date'];
 var tableData = [
       ['asdf', '18/20', 'test1', '21-11-2018'],
       ['kadf', '15/20', 'test1', '18-11-2018'],
+      ['cxv', '13/20', 'test1', '11-10-2018'],['asdf', '18/20', 'test1', '21-11-2018'],
+      ['kadf', '15/20', 'test1', '18-11-2018'],
+      ['cxv', '13/20', 'test1', '11-10-2018'],['asdf', '18/20', 'test1', '21-11-2018'],
+      ['kadf', '15/20', 'test1', '18-11-2018'],
+      ['cxv', '13/20', 'test1', '11-10-2018'],['asdf', '18/20', 'test1', '21-11-2018'],
+      ['kadf', '15/20', 'test1', '18-11-2018'],
+      ['cxv', '13/20', 'test1', '11-10-2018'],['asdf', '18/20', 'test1', '21-11-2018'],
+      ['kadf', '15/20', 'test1', '18-11-2018'],['asdf', '18/20', 'test1', '21-11-2018'],
+      ['kadf', '15/20', 'test1', '18-11-2018'],
+      ['cxv', '13/20', 'test1', '11-10-2018'],['asdf', '18/20', 'test1', '21-11-2018'],
+      ['kadf', '15/20', 'test1', '18-11-2018'],
+      ['cxv', '13/20', 'test1', '11-10-2018'],
       ['cxv', '13/20', 'test1', '11-10-2018'],
       ['zxc', '3/20', 'test1', '15-04-2018']
     ];
@@ -60,7 +77,7 @@ const DATA_TESTS = [
     title: "Title test #7",
     tag1: "#Tag1",
     tag2: "#Tag2",
-    text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 7."
+    text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 7.Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 7.Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 7.Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 7.Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 7.Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 7.Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 7.Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 7.Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 7.Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 7.Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 7.Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 7.Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 7.Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 7.Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 7.Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 7.Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 7.Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 7.Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 7.Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 7."
   },
 ];
 
@@ -142,7 +159,9 @@ function TestScreen({ route, navigation }) {
         <View style={styles.questionBox}>
           <Image source={require('./progress.png')} style={styles.image}/>
           <Text style={styles.font22}>This is some example of a long question to fill the content?</Text>
+          <ScrollView>
           <Text style={styles.over}>{text}</Text>
+          </ScrollView>
         </View>
         <View style={styles.answerBoxCon}>
           <View style={styles.answerBox}>
@@ -176,12 +195,34 @@ function ResultScreen({ navigation }) {
           <View style={{ flex : 3 }}></View>
       </View>
       <View style={{flex:12, padding: 10, backgroundColor: "white"}}>
+      <ScrollView>
         <Table borderStyle={{borderWidth: 2, borderColor: '#c8e1ff'}}>
           <Row data={tableHead} style={styles.head} textStyle={styles.text}/>
           <Rows data={tableData} textStyle={styles.text}/>
         </Table>
+      </ScrollView>
       </View>
     </View>
+  );
+}
+
+function CustomDrawerContent({navigation}) {
+  return (
+    <DrawerContentScrollView style={{backgroundColor:"grey", color: "red", borderColor: "black", borderWidth: 1}}>
+      <Text style={{fontSize: 32, alignSelf: "center", margin: 10}}>Quiz App</Text>
+      <Image source={require('./quiz.png')} style={{height: 100, width: 120, alignSelf: "center", resizeMode:"stretch"}}/>
+      <View style={{ paddingBottom: 10, borderColor: "black", borderBottomWidth: 1}}>
+      <TouchableOpacity style={styles.drawerOption} onPress={() => {navigation.navigate("Home")}}><Text>Home</Text></TouchableOpacity>
+      <TouchableOpacity style={styles.drawerOption} onPress={() => {navigation.navigate("Result")}}><Text>Result</Text></TouchableOpacity>
+      </View>
+      <TouchableOpacity style={styles.drawerOption} onPress={() => {navigation.navigate("Title test #1")}}><Text>Title test #1</Text></TouchableOpacity>
+      <TouchableOpacity style={styles.drawerOption} onPress={() => {navigation.navigate("Title test #2")}}><Text>Title test #2</Text></TouchableOpacity>
+      <TouchableOpacity style={styles.drawerOption} onPress={() => {navigation.navigate("Title test #3")}}><Text>Title test #3</Text></TouchableOpacity>
+      <TouchableOpacity style={styles.drawerOption} onPress={() => {navigation.navigate("Title test #4")}}><Text>Title test #4</Text></TouchableOpacity>
+      <TouchableOpacity style={styles.drawerOption} onPress={() => {navigation.navigate("Title test #5")}}><Text>Title test #5</Text></TouchableOpacity>
+      <TouchableOpacity style={styles.drawerOption} onPress={() => {navigation.navigate("Title test #6")}}><Text>Title test #6</Text></TouchableOpacity>
+      <TouchableOpacity style={styles.drawerOption} onPress={() => {navigation.navigate("Title test #7")}}><Text>Title test #7</Text></TouchableOpacity>
+    </DrawerContentScrollView>
   );
 }
 
@@ -190,7 +231,7 @@ const Drawer = createDrawerNavigator();
 function App() {
   return (
     <NavigationContainer>
-      <Drawer.Navigator initialRouteName="Home">
+      <Drawer.Navigator initialRouteName="Home" drawerContent={(props) => <CustomDrawerContent {...props} />}>
         <Drawer.Screen name="Home" component={HomeScreen}/>
         <Drawer.Screen name="Result" component={ResultScreen}/>
         <Drawer.Screen name="Title test #1" component={TestScreen}/>
@@ -206,8 +247,29 @@ function App() {
 };
 
 const styles = StyleSheet.create({
-  drawerButton:{paddingLeft: 5, paddingRight: 5, paddingBottom: 2, paddingTop: 2, borderColor:"black", borderWidth:1, backgroundColor:"#A8A8A8"},
-  radius:{borderRadius:7},
+  drawerOption:{
+    backgroundColor:"lightgrey",
+    alignItems:"center",
+    justifyContent:"center",
+    borderWidth: 1,
+    borderColor: "black",
+    borderRadius:7,
+    margin: 10,
+    marginBottom: 0,
+    height: 50},
+
+  drawerButton:{
+    paddingLeft: 5,
+    paddingRight: 5,
+    paddingBottom: 2,
+    paddingTop: 2,
+    borderColor:"black",
+    borderWidth:1,
+    backgroundColor:"lightgrey"
+  },
+  radius:{
+    borderRadius:5
+  },
   toolbar:{
     flex: 1,
     borderColor:"black",
@@ -216,8 +278,13 @@ const styles = StyleSheet.create({
     alignItems:"center",
     paddingLeft: 15,
   },
-  head: { height: 40, backgroundColor: '#f1f8ff' },
-  text: { margin: 6 },
+  head: {
+    height: 40,
+    backgroundColor: '#f1f8ff'
+  },
+  text: {
+    margin: 6
+  },
   over:{
     overflow: "hidden",
     textAlign:"justify",
@@ -306,7 +373,7 @@ const styles = StyleSheet.create({
   goToResult: {
     marginTop: 10,
     padding:10,
-    backgroundColor: "#A8A8A8",
+    backgroundColor: "lightgrey",
     borderColor:"black",
     borderWidth: 1
   }
