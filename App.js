@@ -1,21 +1,23 @@
-import React, { useState } from "react";
+import React, { useState , useEffect} from "react";
 import { FlatList, SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, Button, View, Image, ScrollView, RefreshControl} from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import {Table, Row, Rows} from 'react-native-table-component';
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as Progress from 'react-native-progress';
+import CountDown from 'react-native-countdown-component';
 import {
   DrawerContentScrollView,
   DrawerItemList,
   DrawerItem
 } from '@react-navigation/drawer';
-
 const wait = (timeout) => {
   return new Promise(resolve => {
     setTimeout(resolve, timeout);
   });
 };
 
-var results = [];
+const STORAGE_KEY = '@save_rule_status';
 const DATA_TESTS = [
   {
     id: "1",
@@ -46,6 +48,8 @@ const DATA_TESTS = [
     text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 4."
   }
 ];
+var results = [];
+var yourScore = 0;
 
 const history = [
   {
@@ -229,6 +233,7 @@ const kitchen = [
       ]
   },
 ]
+
 function HomeScreen({ navigation }) {
   return (
   <View style = {styles.container}>
@@ -272,8 +277,8 @@ function HomeScreen({ navigation }) {
   </View>
   );
 };
-
 function TestScreen({navigation, route}) {
+  const [key,setKey] = useState(0);
   const title = route.params.name;
   var i = route.params.questionIndex
   var text = ""
@@ -296,7 +301,14 @@ function TestScreen({navigation, route}) {
         var questions = movies;
       break;
   }
-
+  const go = ({navigation}) =>{
+    if(i < questions.length-1){
+      navigation.navigate(title, {name: title, questionIndex: i+1})
+    }
+    else{
+      navigation.navigate("Result")
+    }
+  }
     return (
       <View style={{ flex: 1}}>
         <View style={styles.toolbar}>
@@ -311,16 +323,23 @@ function TestScreen({navigation, route}) {
         </View>
         <View style={{flex:12, backgroundColor: "white"}}>
           <View style={{flex: 1 , flexDirection: "row", justifyContent:"space-between", padding: 10}}>
-            <Text style={{fontSize: 16}}>Question counter of 2</Text>
-            <View style={{flexDirection: "row"}}>
-              <Text style={styles.font16}>Time: </Text>
-              <Text style={styles.font16}>counter</Text>
-              <Text style={styles.font16}> sec</Text>
+            <Text style={{fontSize: 16}}>Question {i+1} of 2</Text>
+            <View>
+            <CountDown
+               id={key}
+               until={10}
+               size={30}
+               onFinish={() => {setKey(prevKey => prevKey + 1);alert("Time's up!")}}
+               digitStyle={{backgroundColor: '#FFF'}}
+               digitTxtStyle={{color: '#1CC625'}}
+               timeToShow={['S']}
+               timeLabels={{s: ''}}
+             />
             </View>
           </View>
           <View style={{flex: 10, padding: 10}}>
             <View style={styles.questionBox}>
-              <Image source={require('./progress.png')} style={styles.image}/>
+
               <Text style={styles.font22}>{questions[i].question}</Text>
               <ScrollView>
               <Text style={styles.over}>{text}</Text>
@@ -329,12 +348,12 @@ function TestScreen({navigation, route}) {
             <View style={styles.answerBoxCon}>
               <View style={styles.answerBox}>
                 <View style={styles.answers}>
-                  <TouchableOpacity style ={[styles.goToResult, styles.answer,styles.radius]} onPress = {() => {score({navigation},title,i,0)}}><Text>{questions[i].answers[0].content}</Text></TouchableOpacity>
-                  <TouchableOpacity style ={[styles.goToResult, styles.answer,styles.radius]} onPress = {() => {score({navigation},title,i,1)}}><Text>{questions[i].answers[1].content}</Text></TouchableOpacity>
+                  <TouchableOpacity style ={[styles.goToResult, styles.answer,styles.radius]} onPress = {() => {setKey(prevKey => prevKey + 1);score({navigation},title,i,0)}}><Text>{questions[i].answers[0].content}</Text></TouchableOpacity>
+                  <TouchableOpacity style ={[styles.goToResult, styles.answer,styles.radius]} onPress = {() => {setKey(prevKey => prevKey + 1);score({navigation},title,i,1)}}><Text>{questions[i].answers[1].content}</Text></TouchableOpacity>
                 </View>
                 <View style={styles.answers}>
-                  <TouchableOpacity style ={[styles.goToResult, styles.answer,styles.radius]} onPress = {() => {score({navigation},title,i,2)}}><Text>{questions[i].answers[2].content}</Text></TouchableOpacity>
-                  <TouchableOpacity style ={[styles.goToResult, styles.answer,styles.radius]} onPress = {() => {score({navigation},title,i,3)}}><Text>{questions[i].answers[3].content}</Text></TouchableOpacity>
+                  <TouchableOpacity style ={[styles.goToResult, styles.answer,styles.radius]} onPress = {() => {setKey(prevKey => prevKey + 1);score({navigation},title,i,2)}}><Text>{questions[i].answers[2].content}</Text></TouchableOpacity>
+                  <TouchableOpacity style ={[styles.goToResult, styles.answer,styles.radius]} onPress = {() => {setKey(prevKey => prevKey + 1);score({navigation},title,i,3)}}><Text>{questions[i].answers[3].content}</Text></TouchableOpacity>
                 </View>
               </View>
             </View>
@@ -343,7 +362,9 @@ function TestScreen({navigation, route}) {
       </View>
     );
 }
-var yourScore = 0;
+
+
+
 
 function score({navigation}, title, qIndex, aIndex){
   console.log("qIndex")
@@ -367,6 +388,7 @@ function score({navigation}, title, qIndex, aIndex){
     console.log("Score")
     console.log(yourScore);
   }
+
   if(qIndex < history.length-1){
     navigation.navigate(title, {name: title, questionIndex: qIndex+1})
   }
@@ -467,24 +489,82 @@ function CustomDrawerContent({navigation}) {
   );
 }
 
+function RegScreen({navigation}){
+  const [accepted, setAccepted] = useState(false);
+  useEffect(() => {
+      getData();
+  }, []);
+
+  if (accepted == true) {
+      navigation.navigate('Home');
+  }
+
+  const onAccept = async () => {
+      try {
+          console.log(accepted);
+          setAccepted(true);
+          await AsyncStorage.setItem(STORAGE_KEY, 'true');
+      } catch (err) {
+          console.log(err);
+      }
+  };
+
+  const getData = async () => {
+      try {
+          const value = await AsyncStorage.getItem(STORAGE_KEY);
+          if (value !== null) {
+              if (value == 'true') {
+                  setAccepted(true);
+              } else {
+                  setAccepted(false);
+              }
+          }
+      } catch (err) {
+          console.log(err);
+      }
+  };
+  return(
+    <View style={{flex:1}}>
+      <View style={styles.toolbar}>
+          <View style={[styles.drawerButton,styles.radius]}>
+          <TouchableOpacity onPress = {() => {navigation.openDrawer();}}>
+            <Image source={require('./more.png')} style={{height: 40, width: 40}}/>
+          </TouchableOpacity>
+          </View>
+          <View style={{ flex : 2 }}></View>
+          <Text style={{color:"black", fontSize:26}}>Regulamin</Text>
+          <View style={{ flex : 3 }}></View>
+      </View>
+      <View style={{flex:12, padding: 10, backgroundColor: "white", alignItems: "center"}}>
+        <Text>Regulamin</Text>
+        <Text>Czy zgadzasz się na warunki uzytkowania?</Text>
+        <TouchableOpacity style={[styles.goToResult, styles.radius]} onPress={() => {onAccept();navigation.navigate("Home")}}><Text>Potwierdź</Text></TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 const Drawer = createDrawerNavigator();
 
 function App() {
-  return (
-    <NavigationContainer>
-      <Drawer.Navigator initialRouteName="Home" drawerContent={(props) => <CustomDrawerContent {...props} />}>
-        <Drawer.Screen name="Home"component={HomeScreen}/>
-        <Drawer.Screen name="Result" component={ResultScreen}/>
-        <Drawer.Screen name="Historia" initialParams={{name: "Historia", questionIndex: 0}} component={TestScreen}/>
-        <Drawer.Screen name="Kuchnia" initialParams={{name: "Kuchnia", questionIndex: 0}} component={TestScreen}/>
-        <Drawer.Screen name="Sport" initialParams={{name: "Sport", questionIndex: 0}} component={TestScreen}/>
-        <Drawer.Screen name="Filmy" initialParams={{name: "Sport", questionIndex: 0}} component={TestScreen}/>
-      </Drawer.Navigator>
-    </NavigationContainer>
-  );
+  return(
+      <NavigationContainer>
+        <Drawer.Navigator drawerContent={(props) => <CustomDrawerContent {...props} />}>
+          <Drawer.Screen name="Regulamin" component={RegScreen}/>
+          <Drawer.Screen name="Home"component={HomeScreen}/>
+          <Drawer.Screen name="Result" component={ResultScreen}/>
+          <Drawer.Screen name="Historia" initialParams={{name: "Historia", questionIndex: 0}} component={TestScreen}/>
+          <Drawer.Screen name="Kuchnia" initialParams={{name: "Kuchnia", questionIndex: 0}} component={TestScreen}/>
+          <Drawer.Screen name="Sport" initialParams={{name: "Sport", questionIndex: 0}} component={TestScreen}/>
+          <Drawer.Screen name="Filmy" initialParams={{name: "Sport", questionIndex: 0}} component={TestScreen}/>
+        </Drawer.Navigator>
+      </NavigationContainer>
+    );
+
 };
 
 const styles = StyleSheet.create({
+
   drawerOption:{
     backgroundColor:"lightgrey",
     alignItems:"center",
