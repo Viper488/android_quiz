@@ -6,6 +6,7 @@ import {Table, Row, Rows} from 'react-native-table-component';
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Progress from 'react-native-progress';
 import CountDown from 'react-native-countdown-component';
+import SplashScreen from 'react-native-splash-screen'
 import {
   DrawerContentScrollView,
   DrawerItemList,
@@ -547,6 +548,9 @@ function RegScreen({navigation}){
 const Drawer = createDrawerNavigator();
 
 function App() {
+  useEffect(() => {
+        SplashScreen.hide();
+  }, []);
   return(
       <NavigationContainer>
         <Drawer.Navigator drawerContent={(props) => <CustomDrawerContent {...props} />}>
