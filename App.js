@@ -1,4 +1,4 @@
-import React, { useState , useEffect} from "react";
+import React, { useState , useEffect, Component} from "react";
 import { FlatList, SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, Button, View, Image, ScrollView, RefreshControl} from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Progress from 'react-native-progress';
 import CountDown from 'react-native-countdown-component';
 import SplashScreen from 'react-native-splash-screen';
+const _ = require('lodash');
 import {
   DrawerContentScrollView,
   DrawerItemList,
@@ -24,7 +25,7 @@ const wait = (timeout) => {
 };
 
 const KEY = '@save_rule_status';
-const DATA_TESTS = [
+/*const DATA_TESTS = [
   {
     id: "1",
     title: "Historia",
@@ -53,15 +54,15 @@ const DATA_TESTS = [
     tag2: "#Tag2",
     text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 4."
   }
-];
+];*/
 
 
-const testHolder = {
+/*const testHolder = {
     "Historia":history,
     "Kuchnia":kitchen,
     "Sport":sport,
     "Filmy":movies
-};
+};*/
 var results = [];
 var yourScore = 0;
 
@@ -248,7 +249,38 @@ const kitchen = [
   },
 ];*/
 
-function HomeScreen({ navigation }) {
+class HomeScreen extends Component {
+  constructor(props){
+    super(props);
+    this.state = {
+      tests: []
+    };
+  }
+  async getData(id){
+    return await fetch('http://tgryl.pl/quiz/test/' + id)
+          .then((response) => response.json())
+          .then((json) => {
+            return json
+          })
+          .catch((error) => console.error(error));
+  }
+  async navigateTest(navigation,item){
+    const test = await this.getData(item.id);
+    navigation.navigate(item.name , {name: item.name, test: test.tasks, questionIndex: 0, numberOfTasks: item.numberOfTasks})
+  }
+  componentDidMount(){
+    fetch('http://tgryl.pl/quiz/tests')
+          .then((response) => response.json())
+          .then((json) => {
+            this.setState({ tests: json });
+          })
+          .catch((error) => console.error(error));
+  }
+
+render(){
+  const tests = this.state.tests;
+  const navigation = this.props.navigation
+
   return (
   <View style = {styles.container}>
     <View style={styles.toolbar}>
@@ -258,23 +290,28 @@ function HomeScreen({ navigation }) {
           </TouchableOpacity>
         </View>
         <View style={{ flex : 2 }}></View>
-        <Text style={{ color:"black", fontSize:26 }}>Home</Text>
+        <Text style={[{ color:"black", fontSize:26 },styles.Roboto]}>Home</Text>
         <View style={{ flex : 3 }}></View>
     </View>
     <View style={{flex:10, backgroundColor: "white"}}>
       <SafeAreaView style={styles.listcontainer}>
         <FlatList
           keyExtractor={(item) => item.id}
-          data={DATA_TESTS}
+          data={tests}
           renderItem={({item}) => (
-            <TouchableOpacity style={styles.item} onPress = {() => {navigation.navigate(item.title , {name: item.title, test: testHolder[item.title], questionIndex: 0});}}>
-              <Text style={styles.title}>{item.title}</Text>
+            <TouchableOpacity style={styles.item} onPress = {() => {
+              this.navigateTest(navigation,item)
+              }}>
+              <Text style={[styles.title, styles.Roboto]}>{item.name}</Text>
                 <View style={styles.tags}>
-                  <Text style={styles.tag}>{item.tag1}</Text>
-                  <Text style={styles.tag}>{item.tag2}</Text>
+                  {
+                      item.tags.map(n => (
+                        <Text  key={n.toString()} style={styles.tag}>{n.toString()}</Text>
+                      ))
+                  }
                 </View>
                 <View>
-                  <Text>{item.text}</Text>
+                  <Text style={styles.Lato}>{item.description}</Text>
                 </View>
             </TouchableOpacity>
             )
@@ -291,128 +328,109 @@ function HomeScreen({ navigation }) {
   </View>
   );
 };
-function TestScreen({navigation, route}) {
-  const title = route.params.name;
-  const qIndex = route.params.questionIndex
-  const test = route.params.test
+};
 
-    return (
-      <View style={{ flex: 1}}>
-        <View style={styles.toolbar}>
-            <View style={[styles.drawerButton,styles.radius]}>
-            <TouchableOpacity /*onPress = {() => {navigation.openDrawer();}}*/>
-              <Image source={require('./more.png')} style={{height: 40, width: 40}}/>
-            </TouchableOpacity>
+function TestScreen({navigation,route}){
+      const title = route.params.name;
+      const test = route.params.test;
+      const qIndex = route.params.questionIndex;
+      const testLength = route.params.numberOfTasks;
+        return (
+          <View style={{ flex: 1}}>
+            <View style={styles.toolbar}>
+                <View style={[styles.drawerButton,styles.radius]}>
+                <TouchableOpacity /*onPress = {() => {navigation.openDrawer()}}*/>
+                  <Image source={require('./more.png')} style={{height: 40, width: 40}}/>
+                </TouchableOpacity>
+                </View>
+                <View style={{ flex : 2 }}></View>
+                <Text style={[{color:"black", fontSize:26}, styles.Roboto]}>{title}</Text>
+                <View style={{ flex : 3 }}></View>
             </View>
-            <View style={{ flex : 2 }}></View>
-            <Text style={{color:"black", fontSize:26}}>{title}</Text>
-            <View style={{ flex : 3 }}></View>
+            <View style={{flex:12, backgroundColor: "white"}}>
+              {testLength > qIndex ? renderQuestion({navigation}, title, test, qIndex, testLength):renderScore({navigation}, title, testLength)}
+            </View>
+          </View>
+        );
+}
+
+
+function renderQuestion({navigation}, title, test, qIndex, testLength){
+  const [key,setKey] = useState(0);
+  const [run,setRun] = useState(true)
+
+  useEffect(() => {
+        setRun(true);
+        return () => {
+          setRun(false)
+        }
+    }, [])
+    return(
+      <View style={{flex:1}}>
+        <View style={{flex: 1 , flexDirection: "row", justifyContent:"space-between", padding: 10}}>
+          <Text style={{fontSize: 16}}>Question {qIndex+1} of {testLength}</Text>
+          <View>
+            <CountDown
+               id={key}
+               until={test[qIndex].duration}
+               size={30}
+               onFinish={() => {setKey(prevKey => prevKey + 1); nextQuestion({navigation},title, test,qIndex,testLength)}}
+               digitStyle={{backgroundColor: '#FFF'}}
+               digitTxtStyle={{color: '#000'}}
+               timeToShow={['S']}
+               timeLabels={{s: ''}}
+               running={run}
+             />
+          </View>
+
         </View>
-        <View style={{flex:12, backgroundColor: "white"}}>
-          {test.length > qIndex ? renderQuestion({navigation}, test, title, qIndex) : renderScore({navigation}, title)}
+        <ScrollView>
+          <View style={styles.questionBox}>
+          <Text style={styles.font22}>{test[qIndex].question}</Text>
+          </View>
+        </ScrollView>
+        <View style={{flex: 5, padding: 10}}>
+          <View style={styles.answerBoxCon}>
+            <View style={styles.answerBox}>
+                {
+                  test[qIndex].answers.map(n => (
+                    <TouchableOpacity style ={[styles.goToResult, styles.answer,styles.radius]} onPress = {() => {
+                                                  if (n.isCorrect) {
+                                                    yourScore++;
+                                                  }
+                                                  setKey(prevKey => prevKey + 1);
+                                                  nextQuestion({navigation},title,test,qIndex,testLength)
+                                                }}><Text>{n.content}</Text></TouchableOpacity>
+                ))
+                }
+            </View>
+          </View>
         </View>
       </View>
     );
 }
 
-
-function renderQuestion({navigation}, test, title, qIndex){
-  useEffect(() => {
-        setRun(true)
-        return () => {
-          setRun(false)
-        }
-    }, [])
-  const [key,setKey] = useState(0);
-  const [run,setRun] = useState(true)
-  let time = test[qIndex].duration;
-  return(
-    <View style={{flex:1}}>
-      <View style={{flex: 1 , flexDirection: "row", justifyContent:"space-between", padding: 10}}>
-        <Text style={{fontSize: 16}}>Question {qIndex+1} of 2</Text>
-        <View>
-          <CountDown
-             id={key}
-             until={time}
-             size={30}
-             onFinish={() => {setKey(prevKey => prevKey + 1); nextQuestion({navigation},test,title,qIndex)}}
-             digitStyle={{backgroundColor: '#FFF'}}
-             digitTxtStyle={{color: '#000'}}
-             timeToShow={['S']}
-             timeLabels={{s: ''}}
-             running={run}
-           />
-        </View>
-      </View>
-      <View style={{flex: 3, padding: 10}}>
-        <View style={styles.questionBox}>
-          <Text style={styles.font22}>{test[qIndex].question}</Text>
-        </View>
-        <View style={styles.answerBoxCon}>
-          <View style={styles.answerBox}>
-            <View style={styles.answers}>
-              <TouchableOpacity style ={[styles.goToResult, styles.answer,styles.radius]} onPress = {() => {
-                                            if (test[qIndex].answers[0].isCorrect) {
-                                              yourScore++;
-                                            }
-                                            setKey(prevKey => prevKey + 1);
-                                            nextQuestion({navigation},test,title,qIndex)
-                                          }}><Text>{test[qIndex].answers[0].content}</Text></TouchableOpacity>
-              <TouchableOpacity style ={[styles.goToResult, styles.answer,styles.radius]} onPress = {() => {
-                                            if (test[qIndex].answers[1].isCorrect) {
-                                              yourScore++;
-                                            }
-                                            setKey(prevKey => prevKey + 1);
-                                            nextQuestion({navigation},test,title,qIndex)
-                                          }}><Text>{test[qIndex].answers[1].content}</Text></TouchableOpacity>
-            </View>
-            <View style={styles.answers}>
-              <TouchableOpacity style ={[styles.goToResult, styles.answer,styles.radius]} onPress = {() => {
-                                            if (test[qIndex].answers[2].isCorrect) {
-                                              yourScore++;
-                                            }
-                                            setKey(prevKey => prevKey + 1);
-                                            nextQuestion({navigation},test,title,qIndex)
-                                          }}><Text>{test[qIndex].answers[2].content}</Text></TouchableOpacity>
-              <TouchableOpacity style ={[styles.goToResult, styles.answer,styles.radius]} onPress = {() => {
-                                            if (test[qIndex].answers[3].isCorrect) {
-                                              yourScore++;
-                                            }
-                                            setKey(prevKey => prevKey + 1);
-                                            nextQuestion({navigation},test,title,qIndex)
-                                          }}><Text>{test[qIndex].answers[3].content}</Text></TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </View>
-    </View>
-  );
-}
-function nextQuestion({navigation}, test, title, qIndex) {
-    if (qIndex - 1 < test.length) {
-        navigation.navigate(title, {
-            name: title,
-            test: test,
-            questionIndex: qIndex + 1,
-        });
+function nextQuestion({navigation},title,test,qIndex,testLength) {
+      if (qIndex - 1 < testLength) {
+        navigation.navigate(title , {name: title, test: test, questionIndex: qIndex + 1, numberOfTasks: testLength})
     }
 }
 
-function renderScore({navigation}, title){
-    var today = new Date();
-    var dd = String(today.getDate()).padStart(2, '0');
-    var mm = String(today.getMonth() + 1).padStart(2, '0'); //January is 0!
-    var yyyy = today.getFullYear();
-
-    today = yyyy + '-' + mm + '-' + dd;
-    console.log("final score")
-    console.log(yourScore)
-    results.push({
-      nick: "MojNick",
-      score: yourScore,
-      total: testHolder[title].length,
-      type: title,
-      date: today
+function renderScore({navigation}, title, testLength){
+    fetch('http://tgryl.pl/quiz/result',{
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(
+        {
+          nick: "Quizowicz",
+          score: yourScore,
+          total: testLength,
+          type: title,
+        }
+      )
     })
     yourScore = 0;
     navigation.navigate("Result")
@@ -420,12 +438,27 @@ function renderScore({navigation}, title){
 
 function ResultScreen({ navigation }) {
     const [refreshing, setRefreshing] = React.useState(false);
+    const [resultJson, setResultJson] = React.useState([]);
+    useEffect(()=>{
+      fetch('http://tgryl.pl/quiz/results')
+      .then((response) => response.json())
+      .then((json) => setResultJson(json.reverse()))
+      .catch((error) => console.error(error))
+
+      return () => {}
+    },[]);
 
     const onRefresh = React.useCallback(() => {
       setRefreshing(true);
 
-      wait(2000).then(() => setRefreshing(false));
+      wait(2000).then(() => {
+        fetch('http://tgryl.pl/quiz/results')
+        .then((response) => response.json())
+        .then((json) => setResultJson(json.reverse()))
+        .catch((error) => console.error(error))
+        setRefreshing(false)});
     }, []);
+
   return (
     <View style={{flex:1}}>
       <View style={styles.toolbar}>
@@ -435,7 +468,7 @@ function ResultScreen({ navigation }) {
           </TouchableOpacity>
           </View>
           <View style={{ flex : 2 }}></View>
-          <Text style={{color:"black", fontSize:26}}>Result</Text>
+          <Text style={[{color:"black", fontSize:26}, styles.Roboto]}>Result</Text>
           <View style={{ flex : 3 }}></View>
       </View>
       <View style={{flex:12, padding: 10, backgroundColor: "white"}}>
@@ -453,17 +486,17 @@ function ResultScreen({ navigation }) {
         </View>
         <View style={{flex:8}}>
           <FlatList
-            data={results}
+            data={resultJson}
             renderItem={({item}) => (
               <View style={{flex: 1, flexDirection: "row", borderWidth: 1, borderBottomWidth: 0, borderColor: "black"}}>
                 <Text style={{flex:1, borderRightWidth: 1, borderBottomWidth: 1, borderColor: "black",paddingTop: 20, paddingBottom: 20, paddingLeft: 10}}>{item.nick}</Text>
                 <View style={{flex:1, flexDirection: "row", borderRightWidth: 1, borderBottomWidth: 1, borderColor: "black",paddingTop: 20, paddingBottom: 20, paddingLeft: 10}}>
-                  <Text>{item.score.valueOf()}</Text>
+                  <Text>{item.score}</Text>
                   <Text>/</Text>
-                  <Text>{item.total.valueOf()}</Text>
+                  <Text>{item.total}</Text>
                 </View>
                 <Text style={{flex:1, borderRightWidth: 1, borderBottomWidth: 1, borderColor: "black" ,paddingTop: 20, paddingBottom: 20, paddingLeft: 10}}>{item.type}</Text>
-                <Text style={{flex:1, borderBottomWidth: 1, borderColor: "black",paddingTop: 20, paddingBottom: 20, paddingLeft: 10}}>{item.date}</Text>
+                <Text style={{flex:1, borderBottomWidth: 1, borderColor: "black",paddingTop: 20, paddingBottom: 20, paddingLeft: 10}}>{item.createdOn}</Text>
               </View>
               )
             }
@@ -477,19 +510,52 @@ function ResultScreen({ navigation }) {
 }
 
 function CustomDrawerContent({navigation}) {
+  const [tests, setTests] = React.useState([]);
+  useEffect(()=>{
+    fetch('http://tgryl.pl/quiz/tests')
+    .then((response) => response.json())
+    .then((json) => setTests(json))
+    .catch((error) => console.error(error))
+    return () => {}
+  },[]);
+
+  const getData = async (id) =>{
+    try{
+    return await fetch('http://tgryl.pl/quiz/test/' + id)
+          .then((response) => response.json())
+          .then((json) => {
+            return json
+          })
+          .catch((error) => console.error(error));
+        }catch (err) {
+            console.log(err);
+        }
+  }
+  const navigateTest = async ({navigation},item) => {
+  try{
+    const test = await getData(item.id);
+    navigation.navigate(item.name , {name: item.name, test: test.tasks, questionIndex: 0, numberOfTasks: item.numberOfTasks})
+  }catch (err) {
+      console.log(err);
+  }
+  }
+
   return (
     <DrawerContentScrollView style={{backgroundColor:"grey", color: "red", borderColor: "black", borderWidth: 1}}>
-      <Text style={{fontSize: 32, alignSelf: "center", margin: 10}}>Quiz App</Text>
+      <Text style={[{fontSize: 32, alignSelf: "center", margin: 10},styles.Lato]}>Quiz App</Text>
       <Image source={require('./quiz.png')} style={{height: 100, width: 120, alignSelf: "center", resizeMode:"stretch"}}/>
       <View style={{ paddingBottom: 10, borderColor: "black", borderBottomWidth: 1}}>
-      <TouchableOpacity style={styles.drawerOption} onPress={() => {navigation.navigate("Home")}}><Text>Home</Text></TouchableOpacity>
-      <TouchableOpacity style={styles.drawerOption} onPress={() => {navigation.navigate("Result")}}><Text>Result</Text></TouchableOpacity>
+      <TouchableOpacity style={styles.drawerOption} onPress={() => {navigation.navigate("Home")}}><Text style={styles.Lato}>Home</Text></TouchableOpacity>
+      <TouchableOpacity style={styles.drawerOption} onPress={() => {navigation.navigate("Result")}}><Text style={styles.Lato}>Result</Text></TouchableOpacity>
       </View>
-      <TouchableOpacity style={styles.drawerOption} onPress={() => {navigation.navigate("Historia", {name: "Historia", test: testHolder["Historia"], questionIndex: 0} )}}><Text>Historia</Text></TouchableOpacity>
-      <TouchableOpacity style={styles.drawerOption} onPress={() => {navigation.navigate("Kuchnia", {name: "Kuchnia", test: testHolder["Kuchnia"], questionIndex: 0} )}}><Text>Kuchnia</Text></TouchableOpacity>
-      <TouchableOpacity style={styles.drawerOption} onPress={() => {navigation.navigate("Sport", {name: "Sport", test: testHolder["Sport"], questionIndex: 0})}}><Text>Sport</Text></TouchableOpacity>
-      <TouchableOpacity style={styles.drawerOption} onPress={() => {navigation.navigate("Filmy", {name: "Filmy", test: testHolder["Filmy"], questionIndex: 0})}}><Text>Filmy</Text></TouchableOpacity>
-    </DrawerContentScrollView>
+      {
+          tests.map(n => (
+            <TouchableOpacity style={styles.drawerOption} onPress={() => {
+            navigateTest({navigation}, n)}}>
+            <Text style={styles.Lato}>{n.name.toString()}</Text></TouchableOpacity>
+          ))
+      }
+      </DrawerContentScrollView>
   );
 }
 
@@ -548,27 +614,45 @@ function RegScreen({navigation}){
   );
 }
 
+
+
 const Drawer = createDrawerNavigator();
 
-function App() {
-  useEffect(() => {
+class App extends Component {
+  constructor(props){
+    super(props);
+    this.state = {
+      tests: []
+    };
+  }
+  componentDidMount(){
+    fetch('http://tgryl.pl/quiz/tests')
+          .then((response) => response.json())
+          .then((json) => {
+            this.setState({ tests: json });
+          })
+          .catch((error) => console.error(error));
     SplashScreen.hide();
-  }, []);
+  }
 
+render(){
+  const tests = this.state.tests
   return(
       <NavigationContainer>
         <Drawer.Navigator drawerContent={(props) => <CustomDrawerContent {...props} />}>
           <Drawer.Screen name="Regulamin" component={RegScreen}/>
           <Drawer.Screen name="Home"component={HomeScreen}/>
           <Drawer.Screen name="Result" component={ResultScreen}/>
-          <Drawer.Screen name="Historia" initialParams={{name: "Historia", test: testHolder["Historia"], questionIndex: 0}} component={TestScreen}/>
-          <Drawer.Screen name="Kuchnia" initialParams={{name: "Kuchnia", test: testHolder["Kuchnia"], questionIndex: 0}} component={TestScreen}/>
-          <Drawer.Screen name="Sport" initialParams={{name: "Sport", test: testHolder["Sport"], questionIndex: 0}} component={TestScreen}/>
-          <Drawer.Screen name="Filmy" initialParams={{name: "Filmy", test: testHolder["Filmy"], questionIndex: 0}} component={TestScreen}/>
+          {
+              tests.map(n => (
+                <Drawer.Screen name={n.name} component={TestScreen}/>
+              ))
+          }
         </Drawer.Navigator>
       </NavigationContainer>
     );
 
+};
 };
 
 const styles = StyleSheet.create({
@@ -576,6 +660,7 @@ const styles = StyleSheet.create({
   drawerOption:{
     backgroundColor:"lightgrey",
     alignItems:"center",
+    paddingLeft: 20,
     justifyContent:"center",
     borderWidth: 1,
     borderColor: "black",
@@ -702,6 +787,12 @@ const styles = StyleSheet.create({
     backgroundColor: "lightgrey",
     borderColor:"black",
     borderWidth: 1
+  },
+  Roboto:{
+    fontFamily: "Roboto-Black"
+  },
+  Lato:{
+    fontFamily: "Lato-Regular"
   }
 });
 
