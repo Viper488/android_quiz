@@ -27,6 +27,7 @@
     "react-native-safe-area-context": "^3.1.9",
     "react-native-screens": "^2.15.0",
     "react-native-splash-screen": "^3.2.0",
+    "react-native-sqlite-storage": "^5.0.0",
     "react-native-table-component": "^1.2.1"
   },
   "devDependencies": {
@@ -44,7 +45,8 @@
   },
   "rnpm": {
     "assets": [
-      ".assets/fonts/"
+      ".assets/fonts/",
+      ".assets/www/"
     ]
   }
 }

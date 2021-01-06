@@ -7,16 +7,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Progress from 'react-native-progress';
 import CountDown from 'react-native-countdown-component';
 import SplashScreen from 'react-native-splash-screen';
+import SQLite from 'react-native-sqlite-storage';
 const _ = require('lodash');
+
 import {
   DrawerContentScrollView,
   DrawerItemList,
   DrawerItem
 } from '@react-navigation/drawer';
-import history from './tests/history';
-import sport from './tests/sport';
-import movies from './tests/movies';
-import kitchen from './tests/kitchen';
+
+
+let DB;
+const getDB = () => DB ? DB : DB = SQLite.openDatabase({name: 'database.db', createFromLocation: 1});
 
 const wait = (timeout) => {
   return new Promise(resolve => {
@@ -25,37 +27,7 @@ const wait = (timeout) => {
 };
 
 const KEY = '@save_rule_status';
-/*const DATA_TESTS = [
-  {
-    id: "1",
-    title: "Historia",
-    tag1: "#Tag1",
-    tag2: "#Tag2",
-    text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 1."
-  },
-  {
-    id: "2",
-    title: "Kuchnia",
-    tag1: "#Tag1",
-    tag2: "#Tag2",
-    text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 2."
-  },
-  {
-    id: "3",
-    title: "Sport",
-    tag1: "#Tag1",
-    tag2: "#Tag2",
-    text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 3."
-  },
-  {
-    id: "4",
-    title: "Filmy",
-    tag1: "#Tag1",
-    tag2: "#Tag2",
-    text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. To jest test 4."
-  }
-];*/
-
+//const DATA_TESTS = [];
 
 /*const testHolder = {
     "Historia":history,
@@ -63,7 +35,7 @@ const KEY = '@save_rule_status';
     "Sport":sport,
     "Filmy":movies
 };*/
-var results = [];
+//var results = [];
 var yourScore = 0;
 
 /*const history = [
@@ -248,14 +220,71 @@ const kitchen = [
       ]
   },
 ];*/
-
 class HomeScreen extends Component {
   constructor(props){
     super(props);
     this.state = {
-      tests: []
+      tags: [],
+      tests: [],
+      details: []
     };
   }
+  /*loadAllTestsDetails(db){
+    let tests = this.state.tests;
+    let holder = [];
+    db.transaction(tx=>{
+        tx.executeSql('SELECT * FROM questions;',[],(tx,results)=>{
+          //console.log(results.rows.length)
+          //for(let i = 0; i < results.rows.length; i++){
+          //  holder.push(results.rows.item(i));
+          //  console.log(holder[i]);
+          //}
+        })
+    })
+  }*/
+  getAllTags(db){
+    const query = 'SELECT * FROM tags;';
+    let table = [];
+    db.transaction(tx=>{
+      tx.executeSql(query,[],(tx,results)=>{
+        let len = results.rows.length;
+        if(len > 0){
+          for(let i = 0; i< results.rows.length; i++){
+            table.push(results.rows.item(i));
+          }
+          this.setState({ tags: table });
+          this.getAllTests(db);
+        }
+      })
+  })
+  }
+  getAllTests(db){
+    let tags = this.state.tags
+    const query = 'SELECT * FROM tests;';
+    let table = [];
+    db.transaction(tx=>{
+      tx.executeSql(query,[],(tx,results)=>{
+        let len = results.rows.length;
+        if(len > 0){
+          for(let i = 0; i< results.rows.length; i++){
+            table.push(results.rows.item(i));
+            let idtag = table[i].id;
+            table[i].tags = [];
+            tags.forEach((item, z) => {
+              if(item.id_tag === idtag){
+                //console.log(item.tag);
+                table[i].tags.push(item.tag)
+              }
+            });
+          }
+
+          this.setState({ tests: _.shuffle(table) });
+          //this.loadAllTestsDetails(db);
+        }
+      })
+  })
+}
+
   async getData(id){
     return await fetch('http://tgryl.pl/quiz/test/' + id)
           .then((response) => response.json())
@@ -264,20 +293,24 @@ class HomeScreen extends Component {
           })
           .catch((error) => console.error(error));
   }
+
   async navigateTest(navigation,item){
     const test = await this.getData(item.id);
-    navigation.navigate(item.name , {name: item.name, test: test.tasks, questionIndex: 0, numberOfTasks: item.numberOfTasks})
+    navigation.navigate(item.name , {name: item.name, test: _.shuffle(test.tasks), questionIndex: 0, numberOfTasks: item.numberOfTasks})
   }
   componentDidMount(){
-    fetch('http://tgryl.pl/quiz/tests')
+    this.getAllTags(DB)
+    //this.getAllTests(DB);
+    /*fetch('http://tgryl.pl/quiz/tests')
           .then((response) => response.json())
           .then((json) => {
-            this.setState({ tests: json });
+            this.setState({ tests: _.shuffle(json) });
           })
-          .catch((error) => console.error(error));
+          .catch((error) => console.error(error));*/
   }
 
 render(){
+  //console.log(temp);
   const tests = this.state.tests;
   const navigation = this.props.navigation
 
@@ -304,11 +337,11 @@ render(){
               }}>
               <Text style={[styles.title, styles.Roboto]}>{item.name}</Text>
                 <View style={styles.tags}>
-                  {
-                      item.tags.map(n => (
-                        <Text  key={n.toString()} style={styles.tag}>{n.toString()}</Text>
-                      ))
-                  }
+                {
+                    item.tags.map(n => (
+                      <Text  key={n.toString()} style={styles.tag}>{n.toString()}</Text>
+                    ))
+                }
                 </View>
                 <View>
                   <Text style={styles.Lato}>{item.description}</Text>
@@ -393,7 +426,7 @@ function renderQuestion({navigation}, title, test, qIndex, testLength){
           <View style={styles.answerBoxCon}>
             <View style={styles.answerBox}>
                 {
-                  test[qIndex].answers.map(n => (
+                  _.shuffle(test[qIndex].answers).map(n => (
                     <TouchableOpacity style ={[styles.goToResult, styles.answer,styles.radius]} onPress = {() => {
                                                   if (n.isCorrect) {
                                                     yourScore++;
@@ -478,30 +511,30 @@ function ResultScreen({ navigation }) {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
-        <View style={{flex: 1, flexDirection: "row", borderWidth: 1, borderBottomWidth: 0, borderColor: "black"}}>
-          <Text style={{flex:1, borderRightWidth: 1, borderBottomWidth: 1, borderColor: "black",paddingTop: 20, paddingBottom: 20, paddingLeft: 10, backgroundColor:"lightgrey"}}>Nick</Text>
-          <Text style={{flex:1, borderRightWidth: 1, borderBottomWidth: 1, borderColor: "black",paddingTop: 20, paddingBottom: 20, paddingLeft: 10, backgroundColor:"lightgrey"}}>Point</Text>
-          <Text style={{flex:1, borderRightWidth: 1, borderBottomWidth: 1, borderColor: "black" ,paddingTop: 20, paddingBottom: 20, paddingLeft: 10, backgroundColor:"lightgrey"}}>Type</Text>
-          <Text style={{flex:1, borderBottomWidth: 1, borderColor: "black",paddingTop: 20, paddingBottom: 20, paddingLeft: 10, backgroundColor:"lightgrey"}}>Date</Text>
-        </View>
-        <View style={{flex:8}}>
-          <FlatList
-            data={resultJson}
-            renderItem={({item}) => (
-              <View style={{flex: 1, flexDirection: "row", borderWidth: 1, borderBottomWidth: 0, borderColor: "black"}}>
-                <Text style={{flex:1, borderRightWidth: 1, borderBottomWidth: 1, borderColor: "black",paddingTop: 20, paddingBottom: 20, paddingLeft: 10}}>{item.nick}</Text>
-                <View style={{flex:1, flexDirection: "row", borderRightWidth: 1, borderBottomWidth: 1, borderColor: "black",paddingTop: 20, paddingBottom: 20, paddingLeft: 10}}>
-                  <Text>{item.score}</Text>
-                  <Text>/</Text>
-                  <Text>{item.total}</Text>
+          <View style={{flex: 1, flexDirection: "row", borderWidth: 1, borderBottomWidth: 0, borderColor: "black"}}>
+            <Text style={{flex:1, borderRightWidth: 1, borderBottomWidth: 1, borderColor: "black",paddingTop: 20, paddingBottom: 20, paddingLeft: 10, backgroundColor:"lightgrey"}}>Nick</Text>
+            <Text style={{flex:1, borderRightWidth: 1, borderBottomWidth: 1, borderColor: "black",paddingTop: 20, paddingBottom: 20, paddingLeft: 10, backgroundColor:"lightgrey"}}>Point</Text>
+            <Text style={{flex:1, borderRightWidth: 1, borderBottomWidth: 1, borderColor: "black" ,paddingTop: 20, paddingBottom: 20, paddingLeft: 10, backgroundColor:"lightgrey"}}>Type</Text>
+            <Text style={{flex:1, borderBottomWidth: 1, borderColor: "black",paddingTop: 20, paddingBottom: 20, paddingLeft: 10, backgroundColor:"lightgrey"}}>Date</Text>
+          </View>
+          <View style={{flex:8}}>
+            <FlatList
+              data={resultJson}
+              renderItem={({item}) => (
+                <View style={{flex: 1, flexDirection: "row", borderWidth: 1, borderBottomWidth: 0, borderColor: "black"}}>
+                  <Text style={{flex:1, borderRightWidth: 1, borderBottomWidth: 1, borderColor: "black",paddingTop: 20, paddingBottom: 20, paddingLeft: 10}}>{item.nick}</Text>
+                  <View style={{flex:1, flexDirection: "row", borderRightWidth: 1, borderBottomWidth: 1, borderColor: "black",paddingTop: 20, paddingBottom: 20, paddingLeft: 10}}>
+                    <Text>{item.score}</Text>
+                    <Text>/</Text>
+                    <Text>{item.total}</Text>
+                  </View>
+                  <Text style={{flex:1, borderRightWidth: 1, borderBottomWidth: 1, borderColor: "black" ,paddingTop: 20, paddingBottom: 20, paddingLeft: 10}}>{item.type}</Text>
+                  <Text style={{flex:1, borderBottomWidth: 1, borderColor: "black",paddingTop: 20, paddingBottom: 20, paddingLeft: 10}}>{item.createdOn}</Text>
                 </View>
-                <Text style={{flex:1, borderRightWidth: 1, borderBottomWidth: 1, borderColor: "black" ,paddingTop: 20, paddingBottom: 20, paddingLeft: 10}}>{item.type}</Text>
-                <Text style={{flex:1, borderBottomWidth: 1, borderColor: "black",paddingTop: 20, paddingBottom: 20, paddingLeft: 10}}>{item.createdOn}</Text>
-              </View>
-              )
-            }
-          />
-        </View>
+                )
+              }
+            />
+          </View>
         </ScrollView>
         </SafeAreaView>
       </View>
@@ -514,10 +547,12 @@ function CustomDrawerContent({navigation}) {
   useEffect(()=>{
     fetch('http://tgryl.pl/quiz/tests')
     .then((response) => response.json())
-    .then((json) => setTests(json))
+    .then((json) => setTests(_.shuffle(json)))
     .catch((error) => console.error(error))
     return () => {}
   },[]);
+
+
 
   const getData = async (id) =>{
     try{
@@ -534,7 +569,16 @@ function CustomDrawerContent({navigation}) {
   const navigateTest = async ({navigation},item) => {
   try{
     const test = await getData(item.id);
-    navigation.navigate(item.name , {name: item.name, test: test.tasks, questionIndex: 0, numberOfTasks: item.numberOfTasks})
+    navigation.navigate(item.name , {name: item.name, test: _.shuffle(test.tasks), questionIndex: 0, numberOfTasks: item.numberOfTasks})
+  }catch (err) {
+      console.log(err);
+  }
+  }
+
+  const randomTest = async ({navigation}) => {
+  try{
+    const item = tests[Math.floor(Math.random() * tests.length)];
+    navigateTest({navigation}, item)
   }catch (err) {
       console.log(err);
   }
@@ -547,9 +591,19 @@ function CustomDrawerContent({navigation}) {
       <View style={{ paddingBottom: 10, borderColor: "black", borderBottomWidth: 1}}>
       <TouchableOpacity style={styles.drawerOption} onPress={() => {navigation.navigate("Home")}}><Text style={styles.Lato}>Home</Text></TouchableOpacity>
       <TouchableOpacity style={styles.drawerOption} onPress={() => {navigation.navigate("Result")}}><Text style={styles.Lato}>Result</Text></TouchableOpacity>
+
+      <TouchableOpacity style={styles.drawerOption} onPress={() => {
+        fetch('http://tgryl.pl/quiz/tests')
+        .then((response) => response.json())
+        .then((json) => setTests(_.shuffle(json)))
+        .catch((error) => console.error(error))
+        return () => {}
+      }}><Text style={styles.Lato}>Update tests</Text></TouchableOpacity>
+
+      <TouchableOpacity style={styles.drawerOption} onPress={() => {randomTest({navigation})}}><Text style={styles.Lato}>Random test</Text></TouchableOpacity>
       </View>
       {
-          tests.map(n => (
+            tests.map(n => (
             <TouchableOpacity style={styles.drawerOption} onPress={() => {
             navigateTest({navigation}, n)}}>
             <Text style={styles.Lato}>{n.name.toString()}</Text></TouchableOpacity>
@@ -614,29 +668,110 @@ function RegScreen({navigation}){
   );
 }
 
-
-
 const Drawer = createDrawerNavigator();
 
 class App extends Component {
   constructor(props){
     super(props);
+    getDB();
+    //SQLite.enablePromise(true);
     this.state = {
-      tests: []
+      tests: [],
+      test: 0
     };
   }
+
+  createTables(db){
+    const query1 = 'DROP TABLE IF EXISTS tests;'
+    const query2 = 'DROP TABLE IF EXISTS tags;'
+    const query3 = 'CREATE TABLE IF NOT EXISTS "tests" ( "id" TEXT, "name" TEXT, "description" TEXT, "tags" INTEGER, "level" TEXT, "numberOfTasks" INTEGER, PRIMARY KEY("id"));'
+    const query4 = 'CREATE TABLE IF NOT EXISTS "tags" ( "tag" TEXT, "id_tag" INTEGER, PRIMARY KEY("tag") )'
+    const query5 = 'DROP TABLE IF EXISTS questions;'
+    const query6 = 'DROP TABLE IF EXISTS answers;'
+    const query7 = 'CREATE TABLE IF NOT EXISTS "questions" ( "question" TEXT, "id" TEXT, "duration" INTEGER, PRIMARY KEY("question"));'
+    const query8 = 'CREATE TABLE IF NOT EXISTS "answers" ( "content" TEXT, "question" TEXT, "isCorrect" TEXT, PRIMARY KEY("content","question"));'
+    db.transaction(tx=>{
+      tx.executeSql(query1,[],(tx,results)=>{/*console.log('DROPED TABLE tests')*/});
+      tx.executeSql(query2,[],(tx,results)=>{/*console.log('DROPED TABLE tags')*/});
+      tx.executeSql(query4,[],(tx,results)=>{/*console.log('CREATED TABLE tags')*/});
+      tx.executeSql(query3,[],(tx,results)=>{/*console.log('CREATED TABLE tests')*/});
+      tx.executeSql(query5,[],(tx,results)=>{/*console.log('DROPED TABLE questions')*/});
+      tx.executeSql(query6,[],(tx,results)=>{/*console.log('DROPED TABLE answers')*/});
+      tx.executeSql(query7,[],(tx,results)=>{/*console.log('CREATED TABLE questions')*/});
+      tx.executeSql(query8,[],(tx,results)=>{/*console.log('CREATED TABLE answers')*/});
+    })
+  }
+  saveTestDetails(db){
+    let test = this.state.test
+    //console.log(test)
+    db.transaction(tx=>{
+      //tx.executeSql('SELECT * FROM tests;',[],(tx,results)=>{
+        //console.log('chuj lopata ' + results.rows.length)
+        //for(let i = 0; i < results.rows.length; i++){
+        //  holder.push(results.rows.item(i));
+        //  console.log(holder[i]);
+        //}
+      //})
+      //console.log(test.tasks[0].question)
+      test.tasks.forEach((item, i) => {
+        tx.executeSql('INSERT INTO questions VALUES( "'+ item.question +'" , "'+ test.id +'" , '+ item.duration +' )',[],(tx,results)=>{});
+        //console.log(item.question)
+        item.answers.forEach((item2, i2) => {
+          tx.executeSql('INSERT INTO answers VALUES( "'+ item2.content +'" , "'+ item.question +'" , "'+ item2.isCorrect.toString() +'" )',[],(tx,results)=>{});
+          //console.log(item2.content)
+        });
+      });
+    })
+  }
+  saveAllTestDetails(db){
+    const tests = this.state.tests;
+    //tests.forEach((items, i) => {
+      fetch('http://tgryl.pl/quiz/test/' + tests[0].id)
+            .then((response) => response.json())
+            .then((json) => {this.setState({test: json})})
+            .finally(()=>{this.saveTestDetails(db)})
+            .catch((error) => console.error(error));
+    //});
+  }
+
+  saveTest(db, test){
+    const query = 'INSERT INTO tests VALUES( "' + test.id + '" , "' + test.name + '" , "' + test.description + '" ,' + 1 + ', "' + test.level + '" ,' + test.numberOfTasks + ');';
+    let query2;
+    db.transaction(tx=>{
+      tx.executeSql(query,[],(tx,results)=>{/*console.log('INSERT ON tests')*/});
+      test.tags.forEach((item, i) => {
+        query2 = 'INSERT INTO tags VALUES( "' + test.tags[i] + '" , "' + test.id + '" );';
+        tx.executeSql(query2,[],(tx,results)=>{/*console.log('INSERT ON tags')*/});
+      });
+    })
+  }
+
+  saveAllTests(db){
+    const tests = this.state.tests;
+    tests.forEach((item, i) => {
+      this.saveTest(db,item);
+    });
+  }
+
   componentDidMount(){
     fetch('http://tgryl.pl/quiz/tests')
           .then((response) => response.json())
           .then((json) => {
             this.setState({ tests: json });
           })
+          .then(()=>{this.createTables(DB)})
+          .then(()=>{this.saveAllTests(DB)})
+          .then(()=>{this.saveAllTestDetails(DB)})
           .catch((error) => console.error(error));
+
     SplashScreen.hide();
   }
 
+
 render(){
-  const tests = this.state.tests
+
+  const tests = this.state.tests;
+  //const tests = await this.getData();
   return(
       <NavigationContainer>
         <Drawer.Navigator drawerContent={(props) => <CustomDrawerContent {...props} />}>
