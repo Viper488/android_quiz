@@ -27,199 +27,8 @@ const wait = (timeout) => {
 };
 
 const KEY = '@save_rule_status';
-//const DATA_TESTS = [];
 
-/*const testHolder = {
-    "Historia":history,
-    "Kuchnia":kitchen,
-    "Sport":sport,
-    "Filmy":movies
-};*/
-//var results = [];
 var yourScore = 0;
-
-/*const history = [
-  {
-    question: "Który wódz po śmierci Gajusza Mariusza, prowadził wojnę domową z Sullą ?",
-    answers: [
-        {
-            content: "LUCJUSZ CYNNA",
-            isCorrect: true
-        },
-        {
-            content: "JULIUSZ CEZAR",
-            isCorrect: false
-        },
-        {
-            content: "LUCJUSZ MURENA",
-            isCorrect: false
-        },
-        {
-            content: "MAREK KRASSUS",
-            isCorrect: false
-        }
-    ],
-    duration: 30
-  },
-  {
-    question: "W którym roku rozpoczął się potop szwedzki?",
-    answers: [
-        {
-            content: "1600",
-            isCorrect: false
-        },
-        {
-            content: "1655",
-            isCorrect: true
-        },
-        {
-            content: "1667",
-            isCorrect: false
-        },
-        {
-            content: "1624",
-            isCorrect: false
-        }
-    ],
-    duration: 30
-  }
-];
-const sport = [
-  {
-    question: "Który zawodnik NBA zdobył 6 mistrzosw?",
-    answers: [
-        {
-            content: "Kevin Durant",
-            isCorrect: false
-        },
-        {
-            content: "LeBron James",
-            isCorrect: false
-        },
-        {
-            content: "Michael Jordan",
-            isCorrect: true
-        },
-        {
-            content: "Magic Johnson",
-            isCorrect: false
-        }
-    ],
-    duration: 30
-  },
-  {
-    question: "Ile razy Mariusz Pudzinowski wygrał konkurs WSM?",
-    answers: [
-        {
-            content: "4",
-            isCorrect: false
-        },
-        {
-            content: "1",
-            isCorrect: false
-        },
-        {
-            content: "3",
-            isCorrect: false
-        },
-        {
-            content: "5",
-            isCorrect: true
-        }
-    ],
-    duration: 30
-  }
-];
-const movies = [
-  {
-    question: "Który aktor wcielił sie w rolę Wolverine?",
-    answers: [
-        {
-            content: "Hugh Jackman",
-            isCorrect: true
-        },
-        {
-            content: "Ryan Reynolds",
-            isCorrect: false
-        },
-        {
-            content: "Sean Conerry",
-            isCorrect: false
-        },
-        {
-            content: "Daniel Craig",
-            isCorrect: false
-        }
-    ],
-    duration: 30
-  },
-  {
-    question: "Za grę w jakim filmie Russel Crowe otrzymał Oscara?",
-    answers: [
-        {
-            content: "Piekny umysł",
-            isCorrect: false
-        },
-        {
-            content: "American Gangster",
-            isCorrect: false
-        },
-        {
-            content: "Gladiator",
-            isCorrect: true
-        },
-        {
-            content: "Informator",
-            isCorrect: false
-        }
-    ],
-    duration: 30
-  }
-];
-const kitchen = [
-  {
-      question: "Która potrawa pochodzi z kuchni koreańskiej?",
-      answers:[
-        {
-          content:"kimchi",
-          isCorrect: true
-        },
-        {
-          content:"bigos",
-          isCorrect: false
-        },
-        {
-          content:"sznycle",
-          isCorrect: false
-        },
-        {
-          content:"stek",
-          isCorrect: false
-        }
-      ]
-  },
-  {
-      question: "Który kucharz prowadził amerykańską wersję Hell's Kitchen?",
-      answers:[
-        {
-          content:"Magda Gessler",
-          isCorrect: false
-        },
-        {
-          content:"Robert Makłowicz",
-          isCorrect: false
-        },
-        {
-          content:"Gordon Ramsey",
-          isCorrect: true
-        },
-        {
-          content:"Mario Batali",
-          isCorrect: false
-        }
-      ]
-  },
-];*/
 class HomeScreen extends Component {
   constructor(props){
     super(props);
@@ -229,20 +38,57 @@ class HomeScreen extends Component {
       details: []
     };
   }
-  /*loadAllTestsDetails(db){
+
+  async loadAllTestsDetails(db){
     let tests = this.state.tests;
-    let holder = [];
     db.transaction(tx=>{
-        tx.executeSql('SELECT * FROM questions;',[],(tx,results)=>{
-          //console.log(results.rows.length)
-          //for(let i = 0; i < results.rows.length; i++){
-          //  holder.push(results.rows.item(i));
-          //  console.log(holder[i]);
-          //}
-        })
+      let testsDetails = [];
+      tests.forEach((itm, i) => {
+          let tasks = [];
+          tx.executeSql('SELECT * FROM questions WHERE id LIKE "' + itm.id + '" ;',[],(tx,results)=>{
+            //console.log(results.rows.length)
+            for(let j = 0; j < results.rows.length; j++){
+              let answers = [];
+              tx.executeSql('SELECT * FROM answers WHERE question LIKE "' + results.rows.item(j).question + '" ;',[],(tx,resultsA)=>{
+                for(let k = 0; k < resultsA.rows.length; k++){
+                  if(resultsA.rows.item(k).isCorrect == "true"){
+                    answers.push({
+                      "content": resultsA.rows.item(k).content,
+                      "isCorrect": true
+                    });
+                  }
+                  else{
+                    answers.push({
+                      "content": resultsA.rows.item(k).content,
+                      "isCorrect": false
+                    });
+                  }
+                }
+                tasks.push({
+                  "question": results.rows.item(j).question,
+                  "answers": answers,
+                  "duration":parseInt(results.rows.item(j).duration)
+                });
+                if(j == (resultsA.rows.length-1)){
+                  testsDetails.push({
+                    "tags": itm.tags,
+                    "tasks": tasks,
+                    "name": itm.name,
+                    "description": itm.description,
+                    "level": itm.level,
+                    "id":itm.id
+                  });
+                  if(i == (tests.length - 1)){
+                    this.setState({details: testsDetails});
+                  }
+                }
+              });
+            }
+          });
+      })
     })
-  }*/
-  getAllTags(db){
+  }
+  async getAllTags(db){
     const query = 'SELECT * FROM tags;';
     let table = [];
     db.transaction(tx=>{
@@ -258,7 +104,7 @@ class HomeScreen extends Component {
       })
   })
   }
-  getAllTests(db){
+  async getAllTests(db){
     let tags = this.state.tags
     const query = 'SELECT * FROM tests;';
     let table = [];
@@ -272,14 +118,13 @@ class HomeScreen extends Component {
             table[i].tags = [];
             tags.forEach((item, z) => {
               if(item.id_tag === idtag){
-                //console.log(item.tag);
                 table[i].tags.push(item.tag)
               }
             });
           }
 
           this.setState({ tests: _.shuffle(table) });
-          //this.loadAllTestsDetails(db);
+          this.loadAllTestsDetails(db);
         }
       })
   })
@@ -294,13 +139,18 @@ class HomeScreen extends Component {
           .catch((error) => console.error(error));
   }
 
-  async navigateTest(navigation,item){
-    const test = await this.getData(item.id);
-    navigation.navigate(item.name , {name: item.name, test: _.shuffle(test.tasks), questionIndex: 0, numberOfTasks: item.numberOfTasks})
+  async navigateTest(navigation,prop_test){
+    const gettest = await this.getData(prop_test.id);
+    const details = this.state.details;
+    //console.log(details)
+    details.forEach((item, i) => {
+      if(item.id == prop_test.id){
+        navigation.navigate(prop_test.name , {name: prop_test.name, test: _.shuffle(item.tasks), questionIndex: 0, numberOfTasks: prop_test.numberOfTasks})
+      }
+    });
   }
   componentDidMount(){
     this.getAllTags(DB)
-    //this.getAllTests(DB);
     /*fetch('http://tgryl.pl/quiz/tests')
           .then((response) => response.json())
           .then((json) => {
@@ -310,10 +160,18 @@ class HomeScreen extends Component {
   }
 
 render(){
-  //console.log(temp);
-  const tests = this.state.tests;
-  const navigation = this.props.navigation
+  DB.transaction(tx=>{
+    tx.executeSql('SELECT * FROM questions',[],(tx,results)=>{
+    })
+    tx.executeSql('SELECT * FROM answers',[],(tx,results)=>{
+    })
+  })
 
+  const tests = this.state.tests;
+  const navigation = this.props.navigation;
+
+
+  //console.log(this.state.tests)
   return (
   <View style = {styles.container}>
     <View style={styles.toolbar}>
@@ -458,7 +316,7 @@ function renderScore({navigation}, title, testLength){
       },
       body: JSON.stringify(
         {
-          nick: "Quizowicz",
+          nick: "anon",
           score: yourScore,
           total: testLength,
           type: title,
@@ -684,12 +542,12 @@ class App extends Component {
   createTables(db){
     const query1 = 'DROP TABLE IF EXISTS tests;'
     const query2 = 'DROP TABLE IF EXISTS tags;'
-    const query3 = 'CREATE TABLE IF NOT EXISTS "tests" ( "id" TEXT, "name" TEXT, "description" TEXT, "tags" INTEGER, "level" TEXT, "numberOfTasks" INTEGER, PRIMARY KEY("id"));'
-    const query4 = 'CREATE TABLE IF NOT EXISTS "tags" ( "tag" TEXT, "id_tag" INTEGER, PRIMARY KEY("tag") )'
+    const query3 = 'CREATE TABLE "tests" ( "id" TEXT, "name" TEXT, "description" TEXT, "tags" INTEGER, "level" TEXT, "numberOfTasks" INTEGER, PRIMARY KEY("id"));'
+    const query4 = 'CREATE TABLE "tags" ( "tag" TEXT, "id_tag" INTEGER, PRIMARY KEY("tag") )'
     const query5 = 'DROP TABLE IF EXISTS questions;'
     const query6 = 'DROP TABLE IF EXISTS answers;'
-    const query7 = 'CREATE TABLE IF NOT EXISTS "questions" ( "question" TEXT, "id" TEXT, "duration" INTEGER, PRIMARY KEY("question"));'
-    const query8 = 'CREATE TABLE IF NOT EXISTS "answers" ( "content" TEXT, "question" TEXT, "isCorrect" TEXT, PRIMARY KEY("content","question"));'
+    const query7 = 'CREATE TABLE "questions" ( "question" TEXT, "id" TEXT, "duration" INTEGER, PRIMARY KEY("question"));'
+    const query8 = 'CREATE TABLE "answers" ( "content" TEXT, "question" TEXT, "isCorrect" TEXT, PRIMARY KEY("content","question"));'
     db.transaction(tx=>{
       tx.executeSql(query1,[],(tx,results)=>{/*console.log('DROPED TABLE tests')*/});
       tx.executeSql(query2,[],(tx,results)=>{/*console.log('DROPED TABLE tags')*/});
@@ -721,17 +579,19 @@ class App extends Component {
           //console.log(item2.content)
         });
       });
+
     })
   }
   saveAllTestDetails(db){
     const tests = this.state.tests;
-    //tests.forEach((items, i) => {
-      fetch('http://tgryl.pl/quiz/test/' + tests[0].id)
+    tests.forEach((items, i) => {
+      fetch('http://tgryl.pl/quiz/test/' + items.id)
             .then((response) => response.json())
             .then((json) => {this.setState({test: json})})
-            .finally(()=>{this.saveTestDetails(db)})
+            .then(()=>{this.saveTestDetails(db)})
             .catch((error) => console.error(error));
-    //});
+    });
+
   }
 
   saveTest(db, test){
@@ -772,6 +632,7 @@ render(){
 
   const tests = this.state.tests;
   //const tests = await this.getData();
+
   return(
       <NavigationContainer>
         <Drawer.Navigator drawerContent={(props) => <CustomDrawerContent {...props} />}>
