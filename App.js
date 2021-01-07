@@ -140,7 +140,7 @@ class HomeScreen extends Component {
   }
 
   async navigateTest(navigation,prop_test){
-    const gettest = await this.getData(prop_test.id);
+    //const gettest = await this.getData(prop_test.id);
     const details = this.state.details;
     //console.log(details)
     details.forEach((item, i) => {
@@ -400,19 +400,119 @@ function ResultScreen({ navigation }) {
   );
 }
 
-function CustomDrawerContent({navigation}) {
+class CustomDrawerContent extends Component{
+  constructor(props){
+    super(props);
+    this.state = {
+      navigation: props.navigation,
+      tags: [],
+      tests: [],
+      details: []
+    };
+  }
+  /*
   const [tests, setTests] = React.useState([]);
-  useEffect(()=>{
+  componentDidMount(()=>{
     fetch('http://tgryl.pl/quiz/tests')
     .then((response) => response.json())
     .then((json) => setTests(_.shuffle(json)))
     .catch((error) => console.error(error))
     return () => {}
   },[]);
+*/
 
+  async loadAllTestsDetails(db){
+    let tests = this.state.tests;
+    db.transaction(tx=>{
+      let testsDetails = [];
+      tests.forEach((itm, i) => {
+          let tasks = [];
+          tx.executeSql('SELECT * FROM questions WHERE id LIKE "' + itm.id + '" ;',[],(tx,results)=>{
+            //console.log(results.rows.length)
+            for(let j = 0; j < results.rows.length; j++){
+              let answers = [];
+              tx.executeSql('SELECT * FROM answers WHERE question LIKE "' + results.rows.item(j).question + '" ;',[],(tx,resultsA)=>{
+                for(let k = 0; k < resultsA.rows.length; k++){
+                  if(resultsA.rows.item(k).isCorrect == "true"){
+                    answers.push({
+                      "content": resultsA.rows.item(k).content,
+                      "isCorrect": true
+                    });
+                  }
+                  else{
+                    answers.push({
+                      "content": resultsA.rows.item(k).content,
+                      "isCorrect": false
+                    });
+                  }
+                }
+                tasks.push({
+                  "question": results.rows.item(j).question,
+                  "answers": answers,
+                  "duration":parseInt(results.rows.item(j).duration)
+                });
+                if(j == (resultsA.rows.length-1)){
+                  testsDetails.push({
+                    "tags": itm.tags,
+                    "tasks": tasks,
+                    "name": itm.name,
+                    "description": itm.description,
+                    "level": itm.level,
+                    "id":itm.id
+                  });
+                  if(i == (tests.length - 1)){
+                    this.setState({details: testsDetails});
+                  }
+                }
+              });
+            }
+          });
+      })
+    })
+  }
+  async getAllTags(db){
+    const query = 'SELECT * FROM tags;';
+    let table = [];
+    db.transaction(tx=>{
+      tx.executeSql(query,[],(tx,results)=>{
+        let len = results.rows.length;
+        if(len > 0){
+          for(let i = 0; i< results.rows.length; i++){
+            table.push(results.rows.item(i));
+          }
+          this.setState({ tags: table });
+          this.getAllTests(db);
+        }
+      })
+  })
+  }
+  async getAllTests(db){
+    let tags = this.state.tags
+    const query = 'SELECT * FROM tests;';
+    let table = [];
+    db.transaction(tx=>{
+      tx.executeSql(query,[],(tx,results)=>{
+        let len = results.rows.length;
+        if(len > 0){
+          for(let i = 0; i< results.rows.length; i++){
+            table.push(results.rows.item(i));
+            let idtag = table[i].id;
+            table[i].tags = [];
+            tags.forEach((item, z) => {
+              if(item.id_tag === idtag){
+                table[i].tags.push(item.tag)
+              }
+            });
+          }
 
+          this.setState({ tests: _.shuffle(table) });
+          this.loadAllTestsDetails(db);
+        }
+      })
+  })
+  }
 
-  const getData = async (id) =>{
+  async getData(id){
     try{
     return await fetch('http://tgryl.pl/quiz/test/' + id)
           .then((response) => response.json())
@@ -424,24 +524,46 @@ function CustomDrawerContent({navigation}) {
             console.log(err);
         }
   }
-  const navigateTest = async ({navigation},item) => {
+  /*
+  async navigateTest({navigation},item){
   try{
     const test = await getData(item.id);
     navigation.navigate(item.name , {name: item.name, test: _.shuffle(test.tasks), questionIndex: 0, numberOfTasks: item.numberOfTasks})
   }catch (err) {
       console.log(err);
   }
+}*/
+  async navigateTest(navigation,prop_test){
+    //const gettest = await this.getData(prop_test.id);
+    const details = this.state.details;
+    //console.log(details)
+    details.forEach((item, i) => {
+      if(item.id == prop_test.id){
+        navigation.navigate(prop_test.name , {name: prop_test.name, test: _.shuffle(item.tasks), questionIndex: 0, numberOfTasks: prop_test.numberOfTasks})
+      }
+    });
   }
-
-  const randomTest = async ({navigation}) => {
-  try{
-    const item = tests[Math.floor(Math.random() * tests.length)];
-    navigateTest({navigation}, item)
-  }catch (err) {
-      console.log(err);
+  async randomTest(navigation){
+    try{
+      let tests = this.state.tests
+      const item = tests[Math.floor(Math.random() * tests.length)];
+      this.navigateTest(navigation, item)
+    }catch (err) {
+        console.log(err);
+    }
   }
+  componentDidMount(){
+    this.getAllTags(DB)//ss
   }
-
+render(){
+  DB.transaction(tx=>{
+    tx.executeSql('SELECT * FROM questions',[],(tx,results)=>{
+    })
+    tx.executeSql('SELECT * FROM answers',[],(tx,results)=>{
+    })
+  })
+  const navigation = this.state.navigation;
+  const tests = this.state.tests
   return (
     <DrawerContentScrollView style={{backgroundColor:"grey", color: "red", borderColor: "black", borderWidth: 1}}>
       <Text style={[{fontSize: 32, alignSelf: "center", margin: 10},styles.Lato]}>Quiz App</Text>
@@ -453,22 +575,23 @@ function CustomDrawerContent({navigation}) {
       <TouchableOpacity style={styles.drawerOption} onPress={() => {
         fetch('http://tgryl.pl/quiz/tests')
         .then((response) => response.json())
-        .then((json) => setTests(_.shuffle(json)))
+        .then((json) => this.setState({tests: _.shuffle(json)}))
         .catch((error) => console.error(error))
         return () => {}
       }}><Text style={styles.Lato}>Update tests</Text></TouchableOpacity>
 
-      <TouchableOpacity style={styles.drawerOption} onPress={() => {randomTest({navigation})}}><Text style={styles.Lato}>Random test</Text></TouchableOpacity>
+      <TouchableOpacity style={styles.drawerOption} onPress={() => {this.randomTest(navigation)}}><Text style={styles.Lato}>Random test</Text></TouchableOpacity>
       </View>
       {
             tests.map(n => (
             <TouchableOpacity style={styles.drawerOption} onPress={() => {
-            navigateTest({navigation}, n)}}>
+            this.navigateTest(navigation, n)}}>
             <Text style={styles.Lato}>{n.name.toString()}</Text></TouchableOpacity>
           ))
       }
       </DrawerContentScrollView>
   );
+}
 }
 
 function RegScreen({navigation}){
