@@ -325,6 +325,7 @@ function renderScore({navigation},title, testLength){
         tx.executeSql(query1,[],(tx,results)=>{});
         tx.executeSql(query2,[],(tx,results)=>{});
       })*/
+      yourScore = 0;
       alert('No network connection, your result will be posted when connection is back')
     }
 
