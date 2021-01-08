@@ -19,13 +19,7 @@ import {
 
 
 let DB;
-let check;
 const getDB = () => DB ? DB : DB = SQLite.openDatabase({name: 'database.db', createFromLocation: 1});
-const checkNet = NetInfo.addEventListener(state => {
-  check = state.isConnected;
-});
-
-// Unsubscribe
 const wait = (timeout) => {
   return new Promise(resolve => {
     setTimeout(resolve, timeout);
@@ -53,7 +47,6 @@ class HomeScreen extends Component {
       tests.forEach((itm, i) => {
           let tasks = [];
           tx.executeSql('SELECT * FROM questions WHERE id LIKE "' + itm.id + '" ;',[],(tx,results)=>{
-            //console.log(results.rows.length)
             for(let j = 0; j < results.rows.length; j++){
               let answers = [];
               tx.executeSql('SELECT * FROM answers WHERE question LIKE "' + results.rows.item(j).question + '" ;',[],(tx,resultsA)=>{
@@ -147,7 +140,6 @@ class HomeScreen extends Component {
   }
 
   async navigateTest(navigation,prop_test){
-    //const gettest = await this.getData(prop_test.id);
     const details = this.state.details;
     console.log(details)
     details.forEach((item, i) => {
@@ -158,12 +150,6 @@ class HomeScreen extends Component {
   }
   componentDidMount(){
     this.getAllTags(DB)
-    /*fetch('http://tgryl.pl/quiz/tests')
-          .then((response) => response.json())
-          .then((json) => {
-            this.setState({ tests: _.shuffle(json) });
-          })
-          .catch((error) => console.error(error));*/
   }
 
 render(){
@@ -177,8 +163,6 @@ render(){
   const tests = this.state.tests;
   const navigation = this.props.navigation;
 
-
-  //console.log(this.state.tests)
   return (
   <View style = {styles.container}>
     <View style={styles.toolbar}>
@@ -324,19 +308,27 @@ function renderScore({navigation},title, testLength){
         },
         body: JSON.stringify(
           {
-            nick: "nonicked",
+            nick: "huski",
             score: yourScore,
             total: testLength,
             type: title,
           }
         )
       })
+
+      yourScore = 0;
     }
     else{
+      /*const query1 = 'DROP TABLE IF EXISTS results;'
+      const query2 = 'CREATE TABLE "results" ( "nick" TEXT, "score" INTEGER, "total" INTEGER, "type" TEXT);'
+      db.transaction(tx=>{
+        tx.executeSql(query1,[],(tx,results)=>{});
+        tx.executeSql(query2,[],(tx,results)=>{});
+      })*/
       alert('No network connection, your result will be posted when connection is back')
     }
+
   })
-  yourScore = 0;
   navigation.navigate("Result")
 }
 
@@ -344,11 +336,8 @@ function ResultScreen({ navigation }) {
     const [refreshing, setRefreshing] = React.useState(false);
     const [resultJson, setResultJson] = React.useState([]);
     useEffect(()=>{
-      //console.log(checkNet())
-      //checkNet();
       NetInfo.fetch().then(state => {
         if(state.isConnected == true){
-            console.log('Downloading results')
             fetch('http://tgryl.pl/quiz/results')
             .then((response) => response.json())
             .then((json) => setResultJson(json.reverse()))
@@ -441,16 +430,6 @@ class CustomDrawerContent extends Component{
       details: []
     };
   }
-  /*
-  const [tests, setTests] = React.useState([]);
-  componentDidMount(()=>{
-    fetch('http://tgryl.pl/quiz/tests')
-    .then((response) => response.json())
-    .then((json) => setTests(_.shuffle(json)))
-    .catch((error) => console.error(error))
-    return () => {}
-  },[]);
-*/
 
   async loadAllTestsDetails(db){
     let tests = this.state.tests;
@@ -555,19 +534,9 @@ class CustomDrawerContent extends Component{
             console.log(err);
         }
   }
-  /*
-  async navigateTest({navigation},item){
-  try{
-    const test = await getData(item.id);
-    navigation.navigate(item.name , {name: item.name, test: _.shuffle(test.tasks), questionIndex: 0, numberOfTasks: item.numberOfTasks})
-  }catch (err) {
-      console.log(err);
-  }
-}*/
+
   async navigateTest(navigation,prop_test){
-    //const gettest = await this.getData(prop_test.id);
     const details = this.state.details;
-    //console.log(details)
     details.forEach((item, i) => {
       if(item.id == prop_test.id){
         navigation.navigate(prop_test.name , {name: prop_test.name, test: _.shuffle(item.tasks), questionIndex: 0, numberOfTasks: prop_test.numberOfTasks})
@@ -692,13 +661,11 @@ class App extends Component {
   constructor(props){
     super(props);
     getDB();
-    //checkNet();
-    console.log(check)
-    //SQLite.enablePromise(true);
     this.state = {
       tests: [],
       tags: [],
-      test: 0
+      test: 0,
+      date: ''
     };
   }
 
@@ -724,22 +691,12 @@ class App extends Component {
   }
   saveTestDetails(db){
     let test = this.state.test
-    //console.log(test)
     db.transaction(tx=>{
-      //tx.executeSql('SELECT * FROM tests;',[],(tx,results)=>{
-        //console.log('chuj lopata ' + results.rows.length)
-        //for(let i = 0; i < results.rows.length; i++){
-        //  holder.push(results.rows.item(i));
-        //  console.log(holder[i]);
-        //}
-      //})
-      //console.log(test.tasks[0].question)
+
       test.tasks.forEach((item, i) => {
         tx.executeSql('INSERT INTO questions VALUES( "'+ item.question +'" , "'+ test.id +'" , '+ item.duration +' )',[],(tx,results)=>{});
-        //console.log(item.question)
         item.answers.forEach((item2, i2) => {
           tx.executeSql('INSERT INTO answers VALUES( "'+ item2.content +'" , "'+ item.question +'" , "'+ item2.isCorrect.toString() +'" )',[],(tx,results)=>{});
-          //console.log(item2.content)
         });
       });
 
@@ -761,10 +718,10 @@ class App extends Component {
     const query = 'INSERT INTO tests VALUES( "' + test.id + '" , "' + test.name + '" , "' + test.description + '" ,' + 1 + ', "' + test.level + '" ,' + test.numberOfTasks + ');';
     let query2;
     db.transaction(tx=>{
-      tx.executeSql(query,[],(tx,results)=>{/*console.log('INSERT ON tests')*/});
+      tx.executeSql(query,[],(tx,results)=>{});
       test.tags.forEach((item, i) => {
         query2 = 'INSERT INTO tags VALUES( "' + test.tags[i] + '" , "' + test.id + '" );';
-        tx.executeSql(query2,[],(tx,results)=>{/*console.log('INSERT ON tags')*/});
+        tx.executeSql(query2,[],(tx,results)=>{});
       });
     })
   }
@@ -820,30 +777,57 @@ class App extends Component {
   componentDidMount(){
     NetInfo.fetch().then(state => {
       if(state.isConnected == true){
-          fetch('http://tgryl.pl/quiz/tests')
-                .then((response) => response.json())
-                .then((json) => {
-                  this.setState({ tests: json });
-                })
-                .then(()=>{this.createTables(DB)})
-                .then(()=>{this.saveAllTests(DB)})
-                .then(()=>{this.saveAllTestDetails(DB)})
-                .catch((error) => console.error(error));
+        this.getDate()
       }
       else{
         this.getAllTags(DB)
-        alert('No network connection, application will use tests from database')
       }
     })
     SplashScreen.hide();
   }
 
+  async storeDate(){
+      try {
+        var date = new Date().getDate();
+        var month = new Date().getMonth() + 1;
+        var year = new Date().getFullYear();
+          await AsyncStorage.setItem('date', date + '-' + month + '-' + year);
+      } catch (err) {
+          console.log(err);
+      }
+  };
+
+  async getDate(){
+      try {
+          const get_date = await AsyncStorage.getItem('date');
+          var date = new Date().getDate();
+          var month = new Date().getMonth() + 1;
+          var year = new Date().getFullYear();
+          var full_date = date + '-' + month + '-' + year;
+          if (get_date !== full_date) {
+            fetch('http://tgryl.pl/quiz/tests')
+                  .then((response) => response.json())
+                  .then((json) => {
+                    this.setState({ tests: json });
+                  })
+                  .then(()=>{this.createTables(DB)})
+                  .then(()=>{this.saveAllTests(DB)})
+                  .then(()=>{this.saveAllTestDetails(DB)})
+                  .catch((error) => console.error(error));
+              console.log('data jest inna')
+          }
+          else{
+              this.getAllTags(DB)
+          }
+          this.storeDate()
+      } catch (err) {
+          console.log(err);
+      }
+  };
 
 render(){
 
   const tests = this.state.tests;
-  //console.log(tests)
-  //const tests = await this.getData();
 
   return(
       <NavigationContainer>
