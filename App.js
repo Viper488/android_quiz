@@ -8,6 +8,7 @@ import * as Progress from 'react-native-progress';
 import CountDown from 'react-native-countdown-component';
 import SplashScreen from 'react-native-splash-screen';
 import SQLite from 'react-native-sqlite-storage';
+import NetInfo from '@react-native-community/netinfo';
 const _ = require('lodash');
 
 import {
@@ -18,8 +19,13 @@ import {
 
 
 let DB;
+let check;
 const getDB = () => DB ? DB : DB = SQLite.openDatabase({name: 'database.db', createFromLocation: 1});
+const checkNet = NetInfo.addEventListener(state => {
+  check = state.isConnected;
+});
 
+// Unsubscribe
 const wait = (timeout) => {
   return new Promise(resolve => {
     setTimeout(resolve, timeout);
@@ -29,6 +35,7 @@ const wait = (timeout) => {
 const KEY = '@save_rule_status';
 
 var yourScore = 0;
+
 class HomeScreen extends Component {
   constructor(props){
     super(props);
@@ -142,7 +149,7 @@ class HomeScreen extends Component {
   async navigateTest(navigation,prop_test){
     //const gettest = await this.getData(prop_test.id);
     const details = this.state.details;
-    //console.log(details)
+    console.log(details)
     details.forEach((item, i) => {
       if(item.id == prop_test.id){
         navigation.navigate(prop_test.name , {name: prop_test.name, test: _.shuffle(item.tasks), questionIndex: 0, numberOfTasks: prop_test.numberOfTasks})
@@ -245,7 +252,6 @@ function TestScreen({navigation,route}){
         );
 }
 
-
 function renderQuestion({navigation}, title, test, qIndex, testLength){
   const [key,setKey] = useState(0);
   const [run,setRun] = useState(true)
@@ -307,49 +313,74 @@ function nextQuestion({navigation},title,test,qIndex,testLength) {
     }
 }
 
-function renderScore({navigation}, title, testLength){
-    fetch('http://tgryl.pl/quiz/result',{
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(
-        {
-          nick: "anon",
-          score: yourScore,
-          total: testLength,
-          type: title,
-        }
-      )
-    })
-    yourScore = 0;
-    navigation.navigate("Result")
+function renderScore({navigation},title, testLength){
+  NetInfo.fetch().then(state => {
+    if(state.isConnected == true){
+      fetch('http://tgryl.pl/quiz/result',{
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(
+          {
+            nick: "nonicked",
+            score: yourScore,
+            total: testLength,
+            type: title,
+          }
+        )
+      })
+    }
+    else{
+      alert('No network connection, your result will be posted when connection is back')
+    }
+  })
+  yourScore = 0;
+  navigation.navigate("Result")
 }
 
 function ResultScreen({ navigation }) {
     const [refreshing, setRefreshing] = React.useState(false);
     const [resultJson, setResultJson] = React.useState([]);
     useEffect(()=>{
-      fetch('http://tgryl.pl/quiz/results')
-      .then((response) => response.json())
-      .then((json) => setResultJson(json.reverse()))
-      .catch((error) => console.error(error))
+      //console.log(checkNet())
+      //checkNet();
+      NetInfo.fetch().then(state => {
+        if(state.isConnected == true){
+            console.log('Downloading results')
+            fetch('http://tgryl.pl/quiz/results')
+            .then((response) => response.json())
+            .then((json) => setResultJson(json.reverse()))
+            .catch((error) => console.error(error))
+        }
+        else{
+          alert('No network connection, can not show results')
+        }
+      });
+
 
       return () => {}
     },[]);
 
     const onRefresh = React.useCallback(() => {
       setRefreshing(true);
-
       wait(2000).then(() => {
-        fetch('http://tgryl.pl/quiz/results')
-        .then((response) => response.json())
-        .then((json) => setResultJson(json.reverse()))
-        .catch((error) => console.error(error))
-        setRefreshing(false)});
-    }, []);
+        NetInfo.fetch().then(state => {
+          if(state.isConnected == true){
+            fetch('http://tgryl.pl/quiz/results')
+            .then((response) => response.json())
+            .then((json) => setResultJson(json.reverse()))
+            .catch((error) => console.error(error))
+          }
+          else{
+            alert('No network connection, can not refresh results')
+          }
+        })
+        setRefreshing(false);
+      }, []);
 
+  })
   return (
     <View style={{flex:1}}>
       <View style={styles.toolbar}>
@@ -553,7 +584,7 @@ class CustomDrawerContent extends Component{
     }
   }
   componentDidMount(){
-    this.getAllTags(DB)//ss
+    this.getAllTags(DB)
   }
 render(){
   DB.transaction(tx=>{
@@ -573,11 +604,17 @@ render(){
       <TouchableOpacity style={styles.drawerOption} onPress={() => {navigation.navigate("Result")}}><Text style={styles.Lato}>Result</Text></TouchableOpacity>
 
       <TouchableOpacity style={styles.drawerOption} onPress={() => {
-        fetch('http://tgryl.pl/quiz/tests')
-        .then((response) => response.json())
-        .then((json) => this.setState({tests: _.shuffle(json)}))
-        .catch((error) => console.error(error))
-        return () => {}
+        NetInfo.fetch().then(state => {
+          if(state.isConnected == true){
+              fetch('http://tgryl.pl/quiz/tests')
+              .then((response) => response.json())
+              .then((json) => this.setState({tests: _.shuffle(json)}))
+              .catch((error) => console.error(error))
+          }
+          else{
+            alert('No network connection, can not update tests')
+          }
+        })
       }}><Text style={styles.Lato}>Update tests</Text></TouchableOpacity>
 
       <TouchableOpacity style={styles.drawerOption} onPress={() => {this.randomTest(navigation)}}><Text style={styles.Lato}>Random test</Text></TouchableOpacity>
@@ -655,9 +692,12 @@ class App extends Component {
   constructor(props){
     super(props);
     getDB();
+    //checkNet();
+    console.log(check)
     //SQLite.enablePromise(true);
     this.state = {
       tests: [],
+      tags: [],
       test: 0
     };
   }
@@ -735,18 +775,66 @@ class App extends Component {
       this.saveTest(db,item);
     });
   }
+  async getAllTags(db){
+    const query = 'SELECT * FROM tags;';
+    let table = [];
+    db.transaction(tx=>{
+      tx.executeSql(query,[],(tx,results)=>{
+        let len = results.rows.length;
+        if(len > 0){
+          for(let i = 0; i< results.rows.length; i++){
+            table.push(results.rows.item(i));
+          }
+          this.setState({ tags: table });
+          this.getAllTests(db);
+        }
+      })
+  })
+  }
+  async getAllTests(db){
+    let tags = this.state.tags
+    const query = 'SELECT * FROM tests;';
+    let table = [];
+    db.transaction(tx=>{
+      tx.executeSql(query,[],(tx,results)=>{
+        let len = results.rows.length;
+        if(len > 0){
+          for(let i = 0; i< results.rows.length; i++){
+            table.push(results.rows.item(i));
+            let idtag = table[i].id;
+            table[i].tags = [];
+            tags.forEach((item, z) => {
+              if(item.id_tag === idtag){
+                table[i].tags.push(item.tag)
+              }
+            });
+          }
+
+          this.setState({ tests: _.shuffle(table) });
+          this.loadAllTestsDetails(db);
+        }
+      })
+  })
+}
 
   componentDidMount(){
-    fetch('http://tgryl.pl/quiz/tests')
-          .then((response) => response.json())
-          .then((json) => {
-            this.setState({ tests: json });
-          })
-          .then(()=>{this.createTables(DB)})
-          .then(()=>{this.saveAllTests(DB)})
-          .then(()=>{this.saveAllTestDetails(DB)})
-          .catch((error) => console.error(error));
-
+    NetInfo.fetch().then(state => {
+      if(state.isConnected == true){
+          fetch('http://tgryl.pl/quiz/tests')
+                .then((response) => response.json())
+                .then((json) => {
+                  this.setState({ tests: json });
+                })
+                .then(()=>{this.createTables(DB)})
+                .then(()=>{this.saveAllTests(DB)})
+                .then(()=>{this.saveAllTestDetails(DB)})
+                .catch((error) => console.error(error));
+      }
+      else{
+        this.getAllTags(DB)
+        alert('No network connection, application will use tests from database')
+      }
+    })
     SplashScreen.hide();
   }
 
@@ -754,6 +842,7 @@ class App extends Component {
 render(){
 
   const tests = this.state.tests;
+  //console.log(tests)
   //const tests = await this.getData();
 
   return(
